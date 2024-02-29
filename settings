@@ -13,8 +13,7 @@ getgenv().KiTTYWARE = {
     boothSniper = {
         autoSnipe = true,
         snipeItem = {
-            {Class = "Misc", Name = "Insta Plant Capsule", Price = 5500},
-            {Class = "Misc", Name = "Seed Bag", Price = 3750},
+            {Class = "Misc", Name = "Insta Plant Capsule", Price = 7500},
         }
     }
 }
