@@ -16,7 +16,7 @@ getgenv().KiTTYWARE = {
             {Class = "Misc", Name = "Mini Pinata", Price = 45000},
             {Class = "Misc", Name = "Insta Plant Capsule", Price = 9500},
             {Class = "Misc", Name = "Seed Bag", Price = 3750},
-            {Class = "Seed", Name = "Diamond", Price = 15000},
+            {Class = "Seed", Name = "Diamond", Price = 10000},
             {Class = "Misc", Name = "Large Gift Bag", Price = 12999},
         }
     }
