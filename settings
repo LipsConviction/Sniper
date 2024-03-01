@@ -1,3 +1,4 @@
+print("injected")
 repeat task.wait(1) until game:isLoaded()
 repeat task.wait(1) until game:GetService("Players")
 repeat task.wait(1) until game:GetService("Players").LocalPlayer
