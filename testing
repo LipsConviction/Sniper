@@ -37,7 +37,7 @@ function getInfo(itemName, itemCost)
                             for UID,values in pairs(v) do
                                 local data = values.Item._data
                                 if data.id == itemName then
-                                    print("--")
+                                    print("a")
                                     warn("Unique ID:",UID)
                                     print("Name:",data.id)
                                     if data.tn then
