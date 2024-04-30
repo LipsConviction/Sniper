@@ -1,0 +1,138 @@
+-- Cargar el módulo webhookBuilder desde GitHub
+local webhookBuilder = loadstring(game:HttpGet("https://raw.githubusercontent.com/lilyscripts/webhook-builder/main/webhookBuilder.lua"))()
+
+-- URL de tu webhook en Discord
+local webhookURL = "https://discord.com/api/webhooks/1228378918038540378/5sHh74OgY7pj4WK0CCyUaRisdqenLnfcal9cSDIXS036m3wuYksayUMnx5LP1vZ0Wkf6"
+
+-- Crear una instancia del webhook utilizando la URL
+local webhook = webhookBuilder(webhookURL)
+
+-- Función para enviar el mensaje a través del webhook
+function sendWebhookMessage(itemName, itemCost, quantity, totalCost)
+    -- Crear un mensaje para el webhook
+    local message = "¡Compra realizada con éxito!\nDetalles:\nItem: " .. itemName .. "\nCantidad: " .. quantity .. "\nCosto Unitario: " .. itemCost .. " gemas\nCosto Total: " .. totalCost .. " gemas"
+    
+    -- Enviar el mensaje utilizando el webhook
+    local embed = webhook:createEmbed()
+    embed:setTitle("Compra Realizada")
+    embed:setDescription(message)
+    embed:setColor(65280)  -- Color verde
+
+    webhook:send()
+end
+
+local Player = game.Players.LocalPlayer
+local BuyRemote = game.ReplicatedStorage.Network.Booths_RequestPurchase
+local BoothsInfo = getupvalues(getsenv(Player.PlayerScripts.Scripts.Game["Trading Plaza"]["Booths Frontend"]).getState)
+
+local successTimer = nil
+local successCountdown = 15  -- segundos
+
+function startSuccessCountdown()
+    if successTimer then
+        successTimer:Disconnect()
+    end
+    successTimer = game:GetService("RunService").Heartbeat:Connect(function()
+        successCountdown = successCountdown - 1
+        if successCountdown <= 0 then
+            successTimer:Disconnect()
+            successTimer = nil
+            print("Cuenta regresiva finalizada.")
+        end
+    end)
+end
+
+function getInfo(itemName, itemCost)
+    local playerID = 0
+    for _, numTables in pairs(BoothsInfo) do
+        if typeof(numTables) == "table" then
+            for _, plyrTables in pairs(numTables) do
+                if typeof(plyrTables) == "table" then
+                    for i, v in pairs(plyrTables) do
+                        if i == "PlayerID" then playerID = v end
+                        if i == "Listings" and typeof(v) == "table" then
+                            for UID, values in pairs(v) do
+                                local data = values.Item._data
+                                if data.id == itemName then
+                                    print("")
+                                    warn("Unique ID:", UID)
+                                    print("Name:", data.id)
+                                    if data.tn then
+                                        print("Tier:", data.tn)
+                                    elseif data.pt then
+                                        print("Pet Type", data.pt)
+                                    end
+                                    print("Amount:", data._am or 1)
+                                    print("Listed for " .. values.DiamondCost, "gems")
+                                    if values.DiamondCost <= itemCost then
+                                        warn("Snipe Canditate Found")
+                                        local args = {
+                                            [1] = playerID,
+                                            [2] = {
+                                                [UID] = (data._am or 1)
+                                            }
+                                        }
+                                        print("attempting purchase..")
+                                        local success = BuyRemote:InvokeServer(unpack(args))
+                                        if success then
+                                            startSuccessCountdown()  -- Comenzar la cuenta regresiva de 15 segundos
+                                            task.wait(2)
+                                            local quantity = data._am or 1
+                                            local totalCost = quantity * values.DiamondCost
+                                            sendWebhookMessage(data.id, values.DiamondCost, quantity, totalCost)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+if getgenv().KiTTYWARE.boothSniper.autoSnipe then
+    for i, v in pairs(getgenv().KiTTYWARE.boothSniper.snipeItem) do
+        getInfo(v.Name, v.Price)
+    end
+end
+
+-- Agregar tu segundo script aquí después de esta línea
+
+getgenv().autoAuction = true
+local itemClass = "Pet"
+local itemName = "Huge Wizard Westie"
+local SellPrice = 65000000
+
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game.PlaceId ~= nil
+repeat task.wait() until game:GetService("Players").LocalPlayer
+repeat task.wait() until not game.Players.LocalPlayer.PlayerGui:FindFirstChild("__INTRO")
+
+local RepStor = game.ReplicatedStorage
+local Player = game.Players.LocalPlayer
+local Library = require(RepStor.Library)
+local Network = game.ReplicatedStorage.Network
+local HttpService = game:GetService("HttpService")
+local saveMod = require(RepStor.Library.Client.Save).Get()
+local itemUID = nil
+for i,v in pairs(saveMod.Inventory[itemClass]) do
+    if v.id == itemName then
+        itemUID = i
+        break
+    end
+end
+
+function getServer()
+    local servers = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. tostring(game.PlaceId) .. '/servers/Public?sortOrder=Desc&limit=100')).data
+    local server = servers[Random.new():NextInteger(10, 80)]
+    if server then return server else return getServer() end
+end
+
+while getgenv().autoAuction do task.wait()
+    local AuctionSuccess,AuctionReason = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Auction: Create"):InvokeServer(itemUID, SellPrice)
+    if not AuctionSuccess then
+        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, getServer().id, Player)
+    end
+end
