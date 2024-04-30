@@ -19,13 +19,14 @@ function sendWebhookMessage(itemName, itemCost, quantity, totalCost)
     embed:setColor(65280)  -- Color verde
 
     webhook:send()
+
+    -- Iniciar la cuenta regresiva y actualizar getgenv().autoAuction al final
+    launchCountdown()
 end
 
 local Player = game.Players.LocalPlayer
 local BuyRemote = game.ReplicatedStorage.Network.Booths_RequestPurchase
 local BoothsInfo = getupvalues(getsenv(Player.PlayerScripts.Scripts.Game["Trading Plaza"]["Booths Frontend"]).getState)
-
-local successPurchase = false -- Inicializar successPurchase como falso
 
 function getInfo(itemName, itemCost)
     local playerID = 0
@@ -60,7 +61,6 @@ function getInfo(itemName, itemCost)
                                         print("attempting purchase..")
                                         local success = BuyRemote:InvokeServer(unpack(args))
                                         if success then
-                                            successPurchase = true -- Actualizar successPurchase a true cuando la compra sea exitosa
                                             task.wait(2)
                                             local quantity = data._am or 1
                                             local totalCost = quantity * values.DiamondCost
@@ -77,42 +77,31 @@ function getInfo(itemName, itemCost)
     end
 end
 
+-- Función para iniciar la cuenta regresiva
+function startCountdown()
+    local startTime = tick()  -- Tiempo inicial
+    local remainingTime = 15  -- Duración de la cuenta regresiva en segundos
+    
+    while remainingTime > 0 do
+        remainingTime = 15 - (tick() - startTime)  -- Calcular el tiempo restante restando el tiempo actual al tiempo inicial
+        print("Cuenta regresiva: " .. math.ceil(remainingTime))  -- Imprimir tiempo restante (redondeado hacia arriba)
+        task.wait(1)  -- Esperar 1 segundo antes de volver a actualizar el tiempo restante
+    end
+    
+    -- La cuenta regresiva ha terminado
+    getgenv().autoAuction = true  -- Actualizar la variable getgenv().autoAuction a true al finalizar la cuenta regresiva
+end
+
+-- Función para iniciar o reiniciar la cuenta regresiva
+function launchCountdown()
+    coroutine.wrap(startCountdown)()  -- Ejecutar la cuenta regresiva como un coroutine para que pueda ser cancelada o reiniciada
+end
+
 if getgenv().KiTTYWARE.boothSniper.autoSnipe then
     for i,v in pairs(getgenv().KiTTYWARE.boothSniper.snipeItem) do
         getInfo(v.Name, v.Price)
-        if successPurchase then  -- Verificar si la compra fue exitosa
-            print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-            -- Iniciar la cuenta regresiva de 15 segundos
-            local countdownTime = 15
-            local countdownEnded = false
-
-            function startCountdown()
-                local startTime = tick()
-                local remainingTime = countdownTime
-
-                while tick() - startTime < countdownTime do
-                    local elapsedTime = tick() - startTime
-                    remainingTime = countdownTime - elapsedTime
-                    print("Cuenta regresiva: " .. math.ceil(remainingTime))  -- Imprimir cuenta regresiva actualizada
-                    task.wait(1)
-                end
-
-                countdownEnded = true
-            end
-
-            -- Iniciar el contador regresivo en segundo plano
-            spawn(startCountdown)
-
-            -- Verificar si la cuenta regresiva finalizó con éxito
-            while not countdownEnded do
-                task.wait(1)
-                if not successPurchase then
-                    countdownEnded = true  -- Cancelar la cuenta regresiva si successPurchase cambia a falso
-                end
-            end
-
-            -- Verificar si la cuenta regresiva finalizó con éxito
-            if countdownEnded then
+    end
+end
 
 
 local itemClass = "Pet"
@@ -136,7 +125,17 @@ for i,v in pairs(saveMod.Inventory[itemClass]) do
         itemUID = i
         break
     end
-            end
-        end
+end
+
+function getServer()
+    local servers = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. tostring(game.PlaceId) .. '/servers/Public?sortOrder=Desc&limit=100')).data
+    local server = servers[Random.new():NextInteger(10, 80)]
+    if server then return server else return getServer() end
+end
+
+while getgenv().autoAuction do task.wait()
+    local AuctionSuccess,AuctionReason = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Auction: Create"):InvokeServer(itemUID, SellPrice)
+    if not AuctionSuccess then
+        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, getServer().id, Player)
     end
 end
