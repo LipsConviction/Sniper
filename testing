@@ -79,17 +79,17 @@ if getgenv().KiTTYWARE.boothSniper.autoSnipe then
         getInfo(v.Name, v.Price)
     end
 end
--- Función para verificar si ha pasado suficiente tiempo desde el último éxito
+
+
+local success = BuyRemote:InvokeServer(unpack(args))
+-- Lógica para verificar si ha pasado suficiente tiempo desde el último éxito
 function checkCountdown()
     local currentTime = tick()
     if countdownActive and currentTime - lastSuccessTime >= countdownTime then
         countdownActive = false  -- Detener la cuenta regresiva si ha pasado el tiempo
         print("Cuenta regresiva detenida.")
-        
-        -- Ejecutar el segundo script aquí
-        print("Ejecutando segundo script...")
-        -- Coloca aquí el código de tu segundo script
 
+        -- Ejecutar el segundo script aquí después de que la cuenta regresiva haya terminado
         getgenv().autoAuction = true
         local itemClass = "Pet"
         local itemName = "Huge Wizard Westie"
@@ -130,10 +130,8 @@ function checkCountdown()
     end
 end
 
--- Función para imprimir el tiempo restante cada segundo
-spawn(function()
-    while countdownActive do
-        print("Segundos de la cuenta regresiva:, countdownTime - (tick() - lastSuccessTime)")
-        task.wait(1)
-    end
-end)
+-- Ejemplo de cómo se usaría la función de reinicio de la cuenta regresiva en caso de otro éxito
+if success then
+    resetCountdown()
+end
+
