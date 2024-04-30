@@ -81,51 +81,78 @@ if getgenv().KiTTYWARE.boothSniper.autoSnipe then
 end
 
 
-local success = BuyRemote:InvokeServer(unpack(args))
--- Lógica para verificar si ha pasado suficiente tiempo desde el último éxito
-function checkCountdown()
-    local currentTime = tick()
-    if countdownActive and currentTime - lastSuccessTime >= countdownTime then
-        countdownActive = false  -- Detener la cuenta regresiva si ha pasado el tiempo
-        print("Cuenta regresiva detenida.")
+-- Variable para controlar el estado del contador
+local countdownActive = false
+local countdownTime = 15  -- Duración de la cuenta regresiva en segundos
 
-        -- Ejecutar el segundo script aquí después de que la cuenta regresiva haya terminado
-        getgenv().autoAuction = true
-        local itemClass = "Pet"
-        local itemName = "Huge Wizard Westie"
-        local SellPrice = 65000000
+-- Función para imprimir el tiempo restante cada segundo si hay éxito
+function printCountdown()
+    local startTime = tick()
+    countdownActive = true
+    while countdownActive do
+        local elapsed = tick() - startTime
+        local remaining = math.max(0, countdownTime - elapsed)
+        print("Segundos de la cuenta regresiva:", remaining)
+        task.wait(1)
+    end
+    onCountdownEnd()  -- Llamar a la función para ejecutar el código deseado después del conteo regresivo
+end
 
-        repeat task.wait() until game:IsLoaded()
-        repeat task.wait() until game.PlaceId ~= nil
-        repeat task.wait() until game:GetService("Players").LocalPlayer
-        repeat task.wait() until not game.Players.LocalPlayer.PlayerGui:FindFirstChild("__INTRO")
+-- Función para iniciar la cuenta regresiva si hay éxito
+function startCountdown()
+    if success then
+        spawn(printCountdown)
+    end
+end
 
-        local RepStor = game.ReplicatedStorage
-        local Player = game.Players.LocalPlayer
-        local Library = require(RepStor.Library)
-        local Network = game.ReplicatedStorage.Network
-        local HttpService = game:GetService("HttpService")
-        local saveMod = require(RepStor.Library.Client.Save).Get()
-        local itemUID = nil
-        for i,v in pairs(saveMod.Inventory[itemClass]) do
-            if v.id == itemName then
-                itemUID = i
-                break
-            end
+-- Función para detener y reiniciar la cuenta regresiva si ocurre otro éxito
+function resetCountdown()
+    countdownActive = false
+    task.spawn(startCountdown)
+end
+
+-- Función para ejecutar el código deseado después de que la cuenta regresiva termine
+function onCountdownEnd()
+    -- Coloca aquí el código que deseas ejecutar después de que la cuenta regresiva termine
+    print("La cuenta regresiva ha terminado. Ejecutando código adicional...")
+    
+    -- Ejemplo de código adicional
+    wait(20)
+    getgenv().autoAuction = true
+    local itemClass = "Pet"
+    local itemName = "Huge Wizard Westie"
+    local SellPrice = 65000000
+    
+    repeat task.wait() until game:IsLoaded()
+    repeat task.wait() until game.PlaceId ~= nil
+    repeat task.wait() until game:GetService("Players").LocalPlayer
+    repeat task.wait() until not game.Players.LocalPlayer.PlayerGui:FindFirstChild("__INTRO")
+    
+    local RepStor = game.ReplicatedStorage
+    local Player = game.Players.LocalPlayer
+    local Library = require(RepStor.Library)
+    local Network = game.ReplicatedStorage.Network
+    local HttpService = game:GetService("HttpService")
+    local saveMod = require(RepStor.Library.Client.Save).Get()
+    local itemUID = nil
+    for i,v in pairs(saveMod.Inventory[itemClass]) do
+        if v.id == itemName then
+            itemUID = i
+            break
         end
-
-        function getServer()
-            local servers = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. tostring(game.PlaceId) .. '/servers/Public?sortOrder=Desc&limit=100')).data
-            local server = servers[Random.new():NextInteger(10, 80)]
-            if server then return server else return getServer() end
-        end
-
-        while getgenv().autoAuction do
-            task.wait()
-            local AuctionSuccess,AuctionReason = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Auction: Create"):InvokeServer(itemUID, SellPrice)
-            if not AuctionSuccess then
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, getServer().id, Player)
-            end
+    end
+    
+    function getServer()
+        local servers = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. tostring(game.PlaceId) .. '/servers/Public?sortOrder=Desc&limit=100')).data
+        local server = servers[Random.new():NextInteger(10, 80)]
+        if server then return server else return getServer() end
+    end
+    
+    while getgenv().autoAuction do
+        task.wait()
+        local AuctionSuccess,AuctionReason = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Auction: Create"):InvokeServer(itemUID, SellPrice)
+        if not AuctionSuccess then
+            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, getServer().id, Player)
         end
     end
 end
@@ -134,4 +161,3 @@ end
 if success then
     resetCountdown()
 end
-
