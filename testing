@@ -25,45 +25,48 @@ local Player = game.Players.LocalPlayer
 local BuyRemote = game.ReplicatedStorage.Network.Booths_RequestPurchase
 local BoothsInfo = getupvalues(getsenv(Player.PlayerScripts.Scripts.Game["Trading Plaza"]["Booths Frontend"]).getState)
 
-local successTimer = nil
-local successCountdown = 15  -- segundos
+-- Variables para la cuenta regresiva
+local countdownTime = 15  -- Segundos
+local lastSuccessTime = 0  -- Tiempo del último éxito
+local countdownActive = false  -- Indica si la cuenta regresiva está activa
 
-function startSuccessCountdown()
-    if successTimer then
-        successTimer:Disconnect()
+function resetCountdown()
+    countdownActive = true
+    lastSuccessTime = tick()  -- Reiniciar el tiempo del último éxito
+    print("Cuenta regresiva reiniciada.")
+end
+
+-- Función para verificar si ha pasado suficiente tiempo desde el último éxito
+function checkCountdown()
+    local currentTime = tick()
+    if countdownActive and currentTime - lastSuccessTime >= countdownTime then
+        countdownActive = false  -- Detener la cuenta regresiva si ha pasado el tiempo
+        print("Cuenta regresiva detenida.")
     end
-    successTimer = game:GetService("RunService").Heartbeat:Connect(function()
-        successCountdown = successCountdown - 1
-        if successCountdown <= 0 then
-            successTimer:Disconnect()
-            successTimer = nil
-            print("Cuenta regresiva finalizada.")
-        end
-    end)
 end
 
 function getInfo(itemName, itemCost)
     local playerID = 0
-    for _, numTables in pairs(BoothsInfo) do
+    for _,numTables in pairs(BoothsInfo) do
         if typeof(numTables) == "table" then
-            for _, plyrTables in pairs(numTables) do
+            for _,plyrTables in pairs(numTables) do
                 if typeof(plyrTables) == "table" then
-                    for i, v in pairs(plyrTables) do
+                    for i,v in pairs(plyrTables) do
                         if i == "PlayerID" then playerID = v end
                         if i == "Listings" and typeof(v) == "table" then
-                            for UID, values in pairs(v) do
+                            for UID,values in pairs(v) do
                                 local data = values.Item._data
                                 if data.id == itemName then
                                     print("")
-                                    warn("Unique ID:", UID)
-                                    print("Name:", data.id)
+                                    warn("Unique ID:",UID)
+                                    print("Name:",data.id)
                                     if data.tn then
-                                        print("Tier:", data.tn)
+                                        print("Tier:",data.tn)
                                     elseif data.pt then
                                         print("Pet Type", data.pt)
                                     end
-                                    print("Amount:", data._am or 1)
-                                    print("Listed for " .. values.DiamondCost, "gems")
+                                    print("Amount:",data._am or 1)
+                                    print("Listed for "..values.DiamondCost,"gems")
                                     if values.DiamondCost <= itemCost then
                                         warn("Snipe Canditate Found")
                                         local args = {
@@ -75,11 +78,11 @@ function getInfo(itemName, itemCost)
                                         print("attempting purchase..")
                                         local success = BuyRemote:InvokeServer(unpack(args))
                                         if success then
-                                            startSuccessCountdown()  -- Comenzar la cuenta regresiva de 15 segundos
                                             task.wait(2)
                                             local quantity = data._am or 1
                                             local totalCost = quantity * values.DiamondCost
                                             sendWebhookMessage(data.id, values.DiamondCost, quantity, totalCost)
+                                            resetCountdown()  -- Reiniciar la cuenta regresiva al tener éxito
                                         end
                                     end
                                 end
@@ -92,47 +95,16 @@ function getInfo(itemName, itemCost)
     end
 end
 
+-- Lógica para verificar la cuenta regresiva
+spawn(function()
+    while true do
+        checkCountdown()
+        task.wait(1)  -- Verificar cada segundo
+    end
+end)
+
 if getgenv().KiTTYWARE.boothSniper.autoSnipe then
-    for i, v in pairs(getgenv().KiTTYWARE.boothSniper.snipeItem) do
+    for i,v in pairs(getgenv().KiTTYWARE.boothSniper.snipeItem) do
         getInfo(v.Name, v.Price)
-    end
-end
-
--- Agregar tu segundo script aquí después de esta línea
-
-getgenv().autoAuction = true
-local itemClass = "Pet"
-local itemName = "Huge Wizard Westie"
-local SellPrice = 65000000
-
-repeat task.wait() until game:IsLoaded()
-repeat task.wait() until game.PlaceId ~= nil
-repeat task.wait() until game:GetService("Players").LocalPlayer
-repeat task.wait() until not game.Players.LocalPlayer.PlayerGui:FindFirstChild("__INTRO")
-
-local RepStor = game.ReplicatedStorage
-local Player = game.Players.LocalPlayer
-local Library = require(RepStor.Library)
-local Network = game.ReplicatedStorage.Network
-local HttpService = game:GetService("HttpService")
-local saveMod = require(RepStor.Library.Client.Save).Get()
-local itemUID = nil
-for i,v in pairs(saveMod.Inventory[itemClass]) do
-    if v.id == itemName then
-        itemUID = i
-        break
-    end
-end
-
-function getServer()
-    local servers = game.HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. tostring(game.PlaceId) .. '/servers/Public?sortOrder=Desc&limit=100')).data
-    local server = servers[Random.new():NextInteger(10, 80)]
-    if server then return server else return getServer() end
-end
-
-while getgenv().autoAuction do task.wait()
-    local AuctionSuccess,AuctionReason = game:GetService("ReplicatedStorage"):WaitForChild("Network"):WaitForChild("Auction: Create"):InvokeServer(itemUID, SellPrice)
-    if not AuctionSuccess then
-        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, getServer().id, Player)
     end
 end
