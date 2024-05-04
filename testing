@@ -105,8 +105,8 @@ end
 
 
 local itemClass = "Pet"
-local itemName = "Huge Wizard Westie"
-local SellPrice = 65000000
+local itemName = "Huge Happy Rock"
+local SellPrice = 69000000
 
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.PlaceId ~= nil
